@@ -1,72 +1,41 @@
 module Duplication
 
 import Prelude;
+import ListRelation;
 import String;
 import IO;
 
 import Util;
 
 public int findDuplicates( list[str] ls ) {
-	list[ str ] lines = mapper( ls, trim );
-	list[ list[ bool ] ] dupMatrix = createDuplicateMatrix( lines );
+	lines = mapper( ls, trim );
+	dups  = {};
+	hash  = index( createBlocks( lines ) );
+	hash  = ( k:hash[k] | k <- hash, size( hash[k] ) > 1 );
 	
-	return findDuplicateLines( dupMatrix );
-}
-
-public int findDuplicateLines( list[list[bool]] dupMatrix ) {
-	result    = 0;
-	diagonals = getDiagonals( dupMatrix );
-	
-	for( diagonal <- diagonals ) {
-		result += dupBlocks( diagonal );
+	for( k <- hash ) {
+		for( <s,e> <- hash[k] ) {
+			for( i <- [s..(e+1)] ) dups += i;
+		}
 	}
 	
-	return result;
+	return size( dups );
 }
 
-public int dupBlocks( list[bool] diagonal ) {
-	int result = 0;
-	int i = 0;
+public lrel[list[str],tuple[int,int]] createBlocks( list[str] lines ) {
+	blockSize = 6;
+	blocks    = [];
 	
-	for( match <- diagonal ) {
-		if( match ) {
-			i += 1;
-		}
+	next = lines[0..blockSize];
+	blocks += <next,<0,blockSize-1>>;
+	
+	for( i <- [1..(size(lines) - (blockSize-1))] ) {
+		if( i % (size(lines)/10) == 0 ) println("(<percentageOf(i,size(lines))>%)");
+		next = tail(next);
+		next += lines[i+blockSize-1];
 		
-		if( ! match && i >= 6 ) {
-			result += i;
-		}
-		
-		if( ! match ) {
-			i = 0;
-		}
+		blocks += <next,<i,i+blockSize-1>>;
 	}
 	
-	return result;
-}
-
-public list[list[bool]] getDiagonals( list[list[bool]] matrix ) {
-	dr = for( int y <- [size(matrix)..1] ) {
-		append getDiagonalsRow( matrix, y );
-	}
-	
-	dc = for( int x <- [1..size(matrix)] ) {
-		append getDiagonalsColumn( matrix, x );
-	}
-	
-	return dr + dc;
-}
-
-public list[bool] getDiagonalsRow( list[list[bool]] matrix, int row ) = [ matrix[row + i][i] |int i <- [0..( size(matrix) - row )] ];
-public list[bool] getDiagonalsColumn( list[list[bool]] matrix, int column ) = [ matrix[column + j][j] | int j <- [0..( size(matrix) - column)] ];
-
-
-public list[list[bool]] createDuplicateMatrix( list[str] lines ) {
-	return
-	 for( int x <- [0..size( lines )] ) {
-		append
-		 for( int y <- [0..size( lines )] ) {
-		     append x != y && lines[x] == lines[y];
-		 }
-	 }
+	return blocks;
 }

@@ -8,12 +8,13 @@ import lang::java::m3::AST;
 alias LOC = num;
 alias CC  = num;
 
-public tuple[ LOC, LOC, LOC ] sortComplexities( map[ loc, CC ] unitComplexities, map[ loc, LOC ] unitVolumes ) {
+public tuple[ LOC, LOC, LOC, LOC ] sortComplexities( map[ loc, CC ] unitComplexities, map[ loc, LOC ] unitVolumes ) {
+ 	low =      ( 0 | it + e | e <- [ unitVolumes[l] | l <- unitComplexities, unitComplexities[l] <= 10 ] );
  	moderate = ( 0 | it + e | e <- [ unitVolumes[l] | l <- unitComplexities, unitComplexities[l] > 10 && unitComplexities[l] <= 20 ] );
  	high =     ( 0 | it + e | e <- [ unitVolumes[l] | l <- unitComplexities, unitComplexities[l] > 20 && unitComplexities[l] <= 50 ] );
  	veryHigh = ( 0 | it + e | e <- [ unitVolumes[l] | l <- unitComplexities, unitComplexities[l] > 50 ] );
 
- 	return <moderate, high, veryHigh>;
+ 	return <low, moderate, high, veryHigh>;
 }
 
 public map[ loc, CC ] getUnitComplexities( set[Declaration] decls ) {

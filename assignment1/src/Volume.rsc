@@ -16,20 +16,27 @@ import Util;
 
 alias LOC = num;
 
-public tuple[ LOC, LOC, LOC ] sortUnitVolumes( map[ loc, LOC ] unitSizes ) {
+public tuple[ LOC, LOC, LOC, LOC ] sortUnitVolumes( map[ loc, LOC ] unitSizes ) {
+	low      = ( 0 | it + e | e <- [ unitSizes[l] | l <- unitSizes, unitSizes[l] <= 20 ] );
  	moderate = ( 0 | it + e | e <- [ unitSizes[l] | l <- unitSizes, unitSizes[l] > 20 && unitSizes[l] <= 50 ] );
  	high     = ( 0 | it + e | e <- [ unitSizes[l] | l <- unitSizes, unitSizes[l] > 50 && unitSizes[l] <= 100 ] );
  	veryHigh = ( 0 | it + e | e <- [ unitSizes[l] | l <- unitSizes, unitSizes[l] > 100 ] );
  
-	return <moderate, high, veryHigh>;
+	return <low, moderate, high, veryHigh>;
 }
 
 public list[str] getCode( M3 model ) {
-	ls = [];
+	i          = 1;
+	fs         = files( model );
+	totalFiles = size(fs);
+	ls         = [];
+	
 	for( location <- files( model ) ) {
+		if( i % (totalFiles / 10) == 0 ) println("(<percentageOf( i, totalFiles)>%) ");
 		file = readFile( location );
 		comments = getDocsForLocation( model, location );
 		ls += [ l | l <- split( "\n", stripComments( file, comments ) ), ! lineIsBlank( l ) ];
+		i  += 1;
 	}
 	
 	return ls;

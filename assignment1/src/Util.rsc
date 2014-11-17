@@ -26,4 +26,7 @@ public map[ &T, &Y ] concatenateMap( map[ &T, &Y ] m1, map[ &T, &Y ] m2 ) {
 	return m1;
 }
 
+public int average( list[num] n ) = round( sum(n)/size(n) );
+public int average( set[num]  n ) = round( sum(n)/size(n) );
+
 public str concatString( list[str] lines, str ch ) = ( "" | it + ch + l | l <- lines );
