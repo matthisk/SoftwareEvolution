@@ -25,22 +25,22 @@ public tuple[ LOC, LOC, LOC, LOC ] sortUnitVolumes( map[ loc, LOC ] unitSizes ) 
 	return <low, moderate, high, veryHigh>;
 }
 
-public list[str] getCode( loc project ) = getCode( createM3FromEclipseProject( project ) );
-public list[str] getCode( M3 model ) {
+public lrel[loc,list[str]] getCode( loc project ) = getCode( createM3FromEclipseProject( project ) );
+public lrel[loc,list[str]] getCode( M3 model ) {
 	i          = 1;
 	fs         = files( model );
 	totalFiles = size(fs);
-	ls         = [];
+	result     = [];
 	
 	for( location <- files( model ) ) {
 		if( totalFiles > 10 && i % (totalFiles / 10) == 0 ) println("(<percentageOf( i, totalFiles)>%) ");
 		file = readFile( location );
 		comments = getDocsForLocation( model, location );
-		ls += [ l | l <- split( "\n", stripComments( file, comments ) ), ! lineIsBlank( l ) ];
+		result += < location, [ l | l <- split( "\n", stripComments( file, comments ) ), ! lineIsBlank( l ) ] >;
 		i  += 1;
 	}
 	
-	return ls;
+	return result;
 }
 
 public LOC getLOC( loc project ) = getLOC( createM3FromEclipseProject( project ) );

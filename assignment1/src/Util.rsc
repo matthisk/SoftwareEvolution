@@ -4,6 +4,7 @@ import Prelude;
 import String;
 import util::Math;
 import lang::java::m3::Core;
+import lang::java::m3::Registry;
 
 public num percentageOf( num i, num j ) = round( (i / j) * 100 );
 
@@ -32,10 +33,37 @@ public int average( set[num]  n ) = round( sum(n)/size(n) );
 
 public str concatString( list[str] lines, str ch ) = ( "" | it + ch + l | l <- lines );
 
-public set[loc] myFiles( M3 mmm ) {
-	visit( mmm@containment ) {
-		case c: \compilationUnit(l,_): println(l);
+public set[tuple[int,int]] normalizeDupLines( set[tuple[int,int]] dups ) {
+	lnumbers = {};
+	for( <s,e> <- dups ) {
+		for( i <- [s..(e+1)] ) lnumbers += i;
+	} 
+	
+	m = max( lnumbers );
+	result = {};
+	s = -1;
+	for( i <- [0..(m+2)] ) {
+		if( i in lnumbers ) {
+			if( s == -1 ) s = i;
+		} else {
+			if( s != -1 ) {
+				result += <s,i-1>;
+				s = -1;
+			}
+		}
 	}
 	
-	return {};
+	return result;
+}
+
+public set[loc] myFiles( M3 mmm ) {
+	result = {};
+	
+	for( <l,_> <- mmm@containment ) {
+		if( isCompilationUnit( l ) ) {
+			result += resolveJava( l );
+		}
+	}
+	
+	return result;
 }

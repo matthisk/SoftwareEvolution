@@ -28,7 +28,7 @@ public void run( set[Declaration] ast, M3 model ) {
 	
 	println("Retrieving code...");
 	code                   = getCode( model ); 
-	linesOfCode            = size( code );
+	linesOfCode            = size(( [] | it + lines | <_,lines> <- code ));
 	
 	println("Calculating unit complexities...");
 	unitVolumes      = getUnitVolumes( ast, model );
@@ -191,7 +191,7 @@ public void runDuplication( M3 model ) {
 	
 	println("Retrieving code...");
 	code = getCode( model );
-	linesOfCode = size( code );
+	linesOfCode = size(( [] | it + lines | <_,lines> <- code ));
 	
 	println("
 			'Calculating duplicated lines of code...");
