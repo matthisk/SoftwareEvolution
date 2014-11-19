@@ -5,30 +5,35 @@ import Prelude;
 import lang::java::m3::AST;
 import lang::java::m3::Core;
 import lang::java::jdt::m3::AST;
+import lang::java::jdt::m3::Core;
 
 import Volume;
 import Complexity;
+import Duplication;
+import Util;
 
-public loc testVolume = |file:///Users/matthisk/Repositories/SoftwareEvolution/test/src/test/Volume.java|;
-public loc testComplexity = |file:///Users/matthisk/Repositories/SoftwareEvolution/test/src/test/Complexity.java|;
+public loc testVolume = |project://test/src/test/Volume.java|;
+public loc testComplexity = |project://test/src/test/Complexity.java|;
+public loc testDuplication = |project://test/src/test/Duplication.java|;
+public loc testProject = |project://test/|;
 
 public test bool testGetLOC() {
-	mmm = createM3FromFile( testVolume );
+	mmm = createM3FromEclipseFile( testVolume );
 	return getLOC( mmm ) == 22;
 }
 
 public test bool testGetCode() {
-	mmm = createM3FromFile( testVolume );
-	return size( getCode( mmm ) ) == 22;
+	mmm = createM3FromEclipseFile( testVolume );
+	return size( ([] | it + l | <_,l> <- getCode( mmm ) ) ) == 22;
 }
 
 public test bool testGetUnitVolumes() {
-	ast = createAstFromFile( testVolume );
-	mmm = createM3FromFile( testVolume );
+	ast = createAstsFromEclipseFile( testVolume, true );
+	mmm = createM3FromEclipseFile( testVolume );
 	units = getUnitVolumes( {ast}, mmm );
 	total = sum( range( units ) );
 	
-	return size( units ) == 4 && total == 22; 
+	return size( units ) == 4 && total == 18; 
 }
 
 public test bool testSortUnitVolumes() {
@@ -51,7 +56,7 @@ public test bool testSortUnitVolumes() {
 }
 
 public test bool testUnitComplexities() {
-	complexities = getUnitComplexities( createAstsFromEclipseProject( testComplexity, true ) );
+	complexities = getUnitComplexities( { createAstsFromEclipseFile( testComplexity, true ) } );
 	
 	result = false;
 	for( location <- complexities ) {
@@ -59,4 +64,16 @@ public test bool testUnitComplexities() {
 	}
 	
 	return result;
+}
+
+public test bool testDups() {
+	mmm = createM3FromEclipseFile( testDuplication );
+	
+	return findDuplicates( getCode( mmm ) ) == 16;
+}
+
+public test bool testGetFiles() {
+	mmm = createM3FromEclipseProject( testProject );
+	
+	return size( getFiles( mmm ) ) == 3;
 }

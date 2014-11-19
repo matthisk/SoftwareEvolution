@@ -28,11 +28,11 @@ public tuple[ LOC, LOC, LOC, LOC ] sortUnitVolumes( map[ loc, LOC ] unitSizes ) 
 public lrel[loc,list[str]] getCode( loc project ) = getCode( createM3FromEclipseProject( project ) );
 public lrel[loc,list[str]] getCode( M3 model ) {
 	i          = 1;
-	fs         = files( model );
+	fs         = getFiles( model );
 	totalFiles = size(fs);
 	result     = [];
 	
-	for( location <- files( model ) ) {
+	for( location <- fs ) {
 		if( totalFiles > 10 && i % (totalFiles / 10) == 0 ) println("(<percentageOf( i, totalFiles)>%) ");
 		file = readFile( location );
 		comments = getDocsForLocation( model, location );
@@ -47,7 +47,7 @@ public LOC getLOC( loc project ) = getLOC( createM3FromEclipseProject( project )
 public LOC getLOC( M3 model ) {
 	 result     = 0;
 	 i          = 1;
-	 fs      = files( model );
+	 fs      = getFiles( model );
 	 totalFiles = size( fs );
 	
 	 for( location <- fs ) {
@@ -97,7 +97,7 @@ private map[ loc, LOC ] visitCompilationUnit( loc file, list[Declaration] decls,
 }
 
 public list[ loc ] getDocsForLocation( M3 model, loc location ) {
-	 resolvedLocation = resolveM3( location );
+	 resolvedLocation = location;
 	 return [ comment | <_,comment> <- model@documentation, resolvedLocation.uri == comment.uri  ];
 }
 

@@ -1,9 +1,9 @@
 module Main
 
 import lang::java::m3::Core;
+import lang::java::m3::AST;
 import lang::java::jdt::m3::Core;
 import lang::java::jdt::m3::AST;
-import lang::java::m3::AST;
 
 import Prelude;
 import IO;
@@ -16,7 +16,6 @@ import Ranking;
 
 public loc hsqldb    = |project://hsqldb|;
 public loc smallsql  = |project://smallsql|;
-public loc basicJava = |file:///Users/matthisk/Dropbox/Studie/Faculteit-Beta/Bachelor/Datastructuren/practicum1/Dingesen/src/HeapSorteerder.java|;
 public loc schets    = |project://schets|;
 
 public void run( loc project ) {
@@ -28,7 +27,7 @@ public void run( set[Declaration] ast, M3 model ) {
 	
 	println("Retrieving code...");
 	code                   = getCode( model ); 
-	linesOfCode            = size(( [] | it + lines | <_,lines> <- code ));
+	linesOfCode            = ( 0 | it + size(lines) | <_,lines> <- code );
 	
 	println("Calculating unit complexities...");
 	unitVolumes      = getUnitVolumes( ast, model );
@@ -58,7 +57,7 @@ public void run( set[Declaration] ast, M3 model ) {
 			'Duplicated lines of code:   <duplicates>
 			'Percentage duplicated code: <percentageOf(duplicates, linesOfCode)>%
 			'Number of units:            <getNoMethods( model )>
-			'Number of files:            <size(files(model))>
+			'Number of files:            <size(getFiles(model))>
 			'Average unit size:          <average( range( unitVolumes ) )>
 			'Average unit complexity:    <average( range( unitComplexities ) )>
 			'============================");	

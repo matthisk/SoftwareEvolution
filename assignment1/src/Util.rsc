@@ -6,7 +6,7 @@ import util::Math;
 import lang::java::m3::Core;
 import lang::java::m3::Registry;
 
-public num percentageOf( num i, num j ) = round( (i / j) * 100 );
+public num percentageOf( num i, num j ) = round( (toReal(i) / toReal(j)) * 100 );
 
 public lrel[value,num] maxRange( map[ value, num ] m ) {
 	r = range( m );
@@ -56,12 +56,12 @@ public set[tuple[int,int]] normalizeDupLines( set[tuple[int,int]] dups ) {
 	return result;
 }
 
-public set[loc] myFiles( M3 mmm ) {
+public set[loc] getFiles( M3 mmm ) {
 	result = {};
 	
-	for( <l,_> <- mmm@containment ) {
+	for( <l,t> <- mmm@declarations ) {
 		if( isCompilationUnit( l ) ) {
-			result += resolveJava( l );
+			result += t;
 		}
 	}
 	
