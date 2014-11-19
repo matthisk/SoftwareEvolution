@@ -3,6 +3,7 @@ module Util
 import Prelude;
 import String;
 import util::Math;
+import lang::java::m3::Core;
 
 public num percentageOf( num i, num j ) = round( (i / j) * 100 );
 
@@ -30,3 +31,11 @@ public int average( list[num] n ) = round( sum(n)/size(n) );
 public int average( set[num]  n ) = round( sum(n)/size(n) );
 
 public str concatString( list[str] lines, str ch ) = ( "" | it + ch + l | l <- lines );
+
+public set[loc] myFiles( M3 mmm ) {
+	visit( mmm@containment ) {
+		case c: \compilationUnit(l,_): println(l);
+	}
+	
+	return {};
+}

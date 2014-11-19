@@ -21,7 +21,7 @@ public loc schets    = |project://schets|;
 
 public void run( loc project ) {
 	println("Creating Asts and M3 for: <project>");
-	run( createAstsFromEclipseProject( project ), createM3FromEclipseProject( project ) );
+	run( createAstsFromEclipseProject( project, true ), createM3FromEclipseProject( project ) );
 }
 public void run( set[Declaration] ast, M3 model ) {
 	println("Running metrics for project: <model.id>");
@@ -40,8 +40,8 @@ public void run( set[Declaration] ast, M3 model ) {
 	println("Calculating duplicated lines of code...");
 	duplicates             = findDuplicates( code );
 	
-	rankingUnitComplexity  = getUnitRanking( linesOfCode, sortedCC );
-	rankingUnitVolume      = getUnitRanking( linesOfCode, sortedUnitVolume );
+	rankingUnitComplexity  = getUnitRanking( sortedCC );
+	rankingUnitVolume      = getUnitRanking( sortedUnitVolume );
 	rankingDuplication     = getDuplicationRanking( linesOfCode, duplicates );
 	rankingVolume          = getVolumeRanking( linesOfCode ); 
 	
@@ -58,6 +58,7 @@ public void run( set[Declaration] ast, M3 model ) {
 			'Duplicated lines of code:   <duplicates>
 			'Percentage duplicated code: <percentageOf(duplicates, linesOfCode)>%
 			'Number of units:            <getNoMethods( model )>
+			'Number of files:            <size(files(model))>
 			'Average unit size:          <average( range( unitVolumes ) )>
 			'Average unit complexity:    <average( range( unitComplexities ) )>
 			'============================");	
@@ -134,7 +135,7 @@ public void runComplexity( set[Declaration] ast, M3 model ) {
 	sortedUnitComplexities = sortComplexities( unitComplexities, unitVolumes );
 	
 	println("
-			'Unit complexity ranking: <printRank( getUnitRanking( linesOfCode, sortedUnitComplexities ) )>");
+			'Unit complexity ranking: <printRank( getUnitRanking( sortedUnitComplexities ) )>");
 }
 
 private void maxUnits( map[loc,num] unitMeasures, str t ) {
@@ -147,7 +148,6 @@ public void runVolume( loc project ) {
 }
 public void runVolume( M3 model ) {
 	println("Running volume metrics for project: <model.id>");
-	model = createM3FromEclipseProject( project );
 	
 	linesOfCode = getLOC( model );
 	
@@ -170,22 +170,21 @@ public void runUnitVolume( set[Declaration] ast, M3 model ) {
 	unitVolumes  = getUnitVolumes( ast, model );
 	
 	println("Largest unit(s):
-			'--------------");
+			'============================");
 	maxUnits( unitVolumes, "size" );
 	
 	println("
 			'Calculating amount of methods...");
 	println("Amount of units: <getNoMethods( model )>
-		    '
-		    '--------------");
+		    '============================");
 	
 	sortedUnitVolumes = sortUnitVolumes( unitVolumes );
-	println("Unit volume ranking: <printRank( getUnitRanking( linesOfCode, sortedUnitVolumes ) )>");
+	println("Unit volume ranking: <printRank( getUnitRanking( sortedUnitVolumes ) )>");
 }
 
 public void runDuplication( loc project ) {
 	println("Creating M3 for: <project>");
-	runUnitVolume( createM3FromEclipseProject( project ) );
+	runDuplication( createM3FromEclipseProject( project ) );
 }
 public void runDuplication( M3 model ) {
 	println("Running duplication metrics for project: <model.id>");

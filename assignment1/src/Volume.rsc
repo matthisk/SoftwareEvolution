@@ -25,6 +25,7 @@ public tuple[ LOC, LOC, LOC, LOC ] sortUnitVolumes( map[ loc, LOC ] unitSizes ) 
 	return <low, moderate, high, veryHigh>;
 }
 
+public list[str] getCode( loc project ) = getCode( createM3FromEclipseProject( project ) );
 public list[str] getCode( M3 model ) {
 	i          = 1;
 	fs         = files( model );
@@ -32,7 +33,7 @@ public list[str] getCode( M3 model ) {
 	ls         = [];
 	
 	for( location <- files( model ) ) {
-		if( i % (totalFiles / 10) == 0 ) println("(<percentageOf( i, totalFiles)>%) ");
+		if( totalFiles > 10 && i % (totalFiles / 10) == 0 ) println("(<percentageOf( i, totalFiles)>%) ");
 		file = readFile( location );
 		comments = getDocsForLocation( model, location );
 		ls += [ l | l <- split( "\n", stripComments( file, comments ) ), ! lineIsBlank( l ) ];
@@ -50,7 +51,7 @@ public LOC getLOC( M3 model ) {
 	 totalFiles = size( fs );
 	
 	 for( location <- fs ) {
-		  if( i % (totalFiles / 10) == 0 ) println("(<percentageOf( i, totalFiles)>%) ");
+		  if( totalFiles > 10 && i % (totalFiles / 10) == 0 ) println("(<percentageOf( i, totalFiles)>%) ");
 		  result += locMetric( readFile( location ), getDocsForLocation( model, location ) );
 		  i += 1;
 	 }
@@ -75,7 +76,7 @@ public map[ loc, LOC ] getUnitVolumes( set[Declaration] decls, M3 model ) {
  	}
  
  	for( cu:\compilationUnit(_,_,types) <- decls ) {
- 	 	if( i % (total / 10) == 0 ) println("(<percentageOf( i, total )>%)");
+ 	 	if( total > 10 && i % (total / 10) == 0 ) println("(<percentageOf( i, total )>%)");
 	  	result = concatenateMap( result, visitCompilationUnit( cu@src, types, model ) );
 		i += 1;
 	}

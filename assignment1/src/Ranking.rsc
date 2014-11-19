@@ -20,10 +20,11 @@ public int getVolumeRanking( LOC linesOfCode ) {
  else                          return 5;
 }
 
-public int getUnitRanking( LOC linesOfCode, <LOC low, LOC moderate, LOC high, LOC veryHigh> ) {
- mPerc = percentageOf( moderate, linesOfCode);
- hPerc = percentageOf( high, linesOfCode);
- vhPerc = percentageOf( veryHigh, linesOfCode);
+public int getUnitRanking( <LOC low, LOC moderate, LOC high, LOC veryHigh> ) {
+ total = low + moderate + high + veryHigh;
+ mPerc = percentageOf( moderate, total);
+ hPerc = percentageOf( high, total);
+ vhPerc = percentageOf( veryHigh, total);
 
  if( mPerc <= 25 && hPerc == 0, vhPerc == 0 )          return 1;
  else if ( mPerc <= 30 && hPerc <= 5 && vhPerc == 0 )  return 2;
