@@ -30,9 +30,11 @@ public class Duplication {
         {   BufferedImage nieuw = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB );
             Graphics g = nieuw.getGraphics();
             g.setColor(Color.WHITE);
-            g.fillRect(0, 0, w, h);
-            int j = 0;
-            int p = 1;
+        	g.fillRect(0, 0, w, h);
+            if( true ) {
+            	int j = 0;
+            	int p = 1;
+            }
         }
         
         if ( true )
@@ -40,14 +42,26 @@ public class Duplication {
             Graphics g = nieuw.getGraphics();
             g.setColor(Color.WHITE);
             g.fillRect(0, 0, w, h);
-            int j = 0;
-            int p = 1;
+            
+            if( true ) {
+            	
+            	int j = 0;
+            	int p = 1;
+            }
+        }
+        
+        if( true ) {
+        	int j = 0;
+        	int p = 1;
         }
     }
 	
 	public void geenDups(int aap) {
 		int gaap = aap + 5;
 		int blaat = aap + 10;
+		
+		int agaap = aap + 5;
+		int ablaat = aap + 10;
 	}
 	
 }

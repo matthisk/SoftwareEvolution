@@ -14,12 +14,63 @@ anno loc node@src;
 
 public int MassTreshold = 20;
 
-public loc singleFile = |file:///Users/matthisk/Repositories/SoftwareEvolution/schets/src/SchetsApplet.java|;
+public loc hsqldb          = |project://hsqldb|;
+public loc smallsql        = |project://smallsql|;
+public loc schets          = |project://schets|;
+public loc singleFile      = |file:///Users/matthisk/Repositories/SoftwareEvolution/schets/src/SchetsApplet.java|;
+public loc testDuplication = |project://test/src/test/Duplication.java|;
 
-public set[Declaration] createAsts( loc l ) = { createAstFromFile( l, true ) };
-public set[Declaration] createAsts() = createAstsFromEclipseProject(|project://schets|,true);
+public set[Declaration] createAstsF( loc l ) = { createAstFromFile( l, true ) };
+public set[Declaration] createAstsE( loc l ) = createAstsFromEclipseProject(l,true);
 
-public map[node,set[loc]] findDups( map[node,set[loc]] m ) = ( k:m[k] | k <- m, size(m[k]) > 1 && mass(k) > MassTreshold );
+public set[set[loc]] calculateDuplicates( set[Declaration] ast ) {
+	return range( groupDups( findDups( hashMapAst( annotateNoChildren( generalizeNames( ast ) ) ) ) ) );
+}
+
+public map[node,set[loc]] groupDups2( map[node,set[loc]] m ) {
+	
+	for( k <- m ) {
+		visit( getChildren(k) ) {
+			case node n: if(n in m) m[n] = removeSameFile( m[k], m[n] );
+		}
+	}
+	
+	return m;
+}
+
+public set[loc] removeSameFile( set[loc] s1, set[loc] s2 ) = { l | l <- s2, l.uri notin mapper(s1,getUri) };
+public str getUri( loc l ) = l.uri;
+
+public map[node,set[loc]] groupDups( map[node,set[loc]] m ) {
+	s = {};
+	
+	for( k <- m, k2 <- m, k != k2 ) {
+		c = 0;
+		
+		for( l <- m[k], l2 <- m[k2], l.uri == l2.uri && l > l2 ) {
+			c += 1;
+		}
+		
+		if( c == size(m[k2]) ) {
+			s += k2;
+		}
+	}
+	
+	for( k <- s ) {
+		m = delete( m, k );
+	}
+	
+	return m;
+}
+public map[node,set[loc]] findDups( map[node,set[loc]] m ) = ( k:m[k] | k <- m, size(m[k]) > 1 && withinTreshold(k) );
+
+public bool withinTreshold( node n ) {
+	if( Declaration d := n || Statement d := n || Expression d := n ) {
+		try return d@children > MassTreshold; catch NoSuchAnnotation(_): return false;
+	} else {
+		return false;
+	}
+}
 
 public int mass( node n ) {
 	int r = 1;
@@ -45,65 +96,29 @@ public map[node, set[loc]] hashMapAst( set[Declaration] ast ) {
 
 public set[Declaration] generalizeNames( set[Declaration] ast ) {
 	return visit( ast ) {
-		case n:\enum(str name, list[Type] i, list[Declaration] c, list[Declaration] b) => \enum("enum",i,c,b)[@src=n@src]
-		case n:\enumConstant(str name, list[Expression] a, Declaration c) => \enumConstant("enumConst",a,c)[@src=n@src]
-		case n:\enumConstant(str name, list[Expression] a) => \enumConstant("enumConst",a)[@src=n@src]
-		case n:\class(str name, list[Type] e, list[Type] i, list[Declaration] b) => \class("class",e,i,b)[@src=n@src]
-		case n:\interface(str name, list[Type] e, list[Type] i, list[Declaration] b) => \interface("interface", e, i, b )[@src=n@src]
-		case n:\method(Type r:\return, str name, list[Declaration] p, list[Expression] e, Statement i) => \method( r, "method", p, e, i)[@src=n@src]
-		case n:\method(Type r:\return, str name, list[Declaration] p, list[Expression] e) => \method( r, "method", p, e )[@src=n@src]
-		case n:\constructor(str name, list[Declaration] p, list[Expression] e, Statement i) => \constructor("constructor", p, e, i)[@src=n@src]
-		case n:\typeParameter(str name, list[Type] e) => \typeParameter("typeParameter", e )[@src=n@src]
-		case n:\annotationType(str name, list[Declaration] b) => \annotationType("annotationType", b)[@src=n@src]
+		case n:\enum(str name, list[Type] i, list[Declaration] c, list[Declaration] b) => setAnnotations( \enum("enum",i,c,b), getAnnotations( n ) )
+		case n:\enumConstant(str name, list[Expression] a, Declaration c) => setAnnotations( \enumConstant("enumConst",a,c), getAnnotations( n ) )
+		case n:\enumConstant(str name, list[Expression] a) => setAnnotations( \enumConstant("enumConst",a), getAnnotations( n ) )
+		case n:\class(str name, list[Type] e, list[Type] i, list[Declaration] b) => setAnnotations( \class("class",e,i,b), getAnnotations( n ) )
+		case n:\interface(str name, list[Type] e, list[Type] i, list[Declaration] b) => setAnnotations( \interface("interface", e, i, b ), getAnnotations( n ) )
+		case n:\method(Type r:\return, str name, list[Declaration] p, list[Expression] e, Statement i) => setAnnotations( \method( r, "method", p, e, i), getAnnotations( n ) )
+		case n:\method(Type r:\return, str name, list[Declaration] p, list[Expression] e) => setAnnotations( \method( r, "method", p, e ), getAnnotations( n ) )
+		case n:\constructor(str name, list[Declaration] p, list[Expression] e, Statement i) => setAnnotations( \constructor("constructor", p, e, i), getAnnotations( n ) )
+		case n:\typeParameter(str name, list[Type] e) => setAnnotations( \typeParameter("typeParameter", e ), getAnnotations( n ) )
+		case n:\annotationType(str name, list[Declaration] b) => setAnnotations( \annotationType("annotationType", b), getAnnotations( n ) )
 
-		case n:\variable(str name, int e) => \variable("var", e)[@src=n@src]
-		case n:\variable(str name, int e, Expression i:\initializer) => \variable("var", e, i)[@src=n@src]
-		case n:\simpleName(str name) => \simpleName("name")[@src=n@src]
-		case n:\memberValuePair(str name, Expression v:\value) => \memberValuePair("memberValuePair", v)[@src=n@src]          
+		case n:\variable(str name, int e) => setAnnotations( \variable("var", e), getAnnotations( n ) )
+		case n:\variable(str name, int e, Expression i:\initializer) => setAnnotations( \variable("var", e, i), getAnnotations( n ) )
+		case n:\simpleName(str name) => setAnnotations( \simpleName("name"), getAnnotations( n ) )
+		case n:\memberValuePair(str name, Expression v:\value) => setAnnotations( \memberValuePair("memberValuePair", v), getAnnotations( n ) )          
   
-		case n:\label(str name, Statement b) => \label("label", b)[@src=n@src]
+		case n:\label(str name, Statement b) => setAnnotations( \label("label", b), getAnnotations( n ) )
     }
-}
-
-public list[node] simpleAst( set[Declaration] ast ) {
-	result = [];
-	
-	for( decl <- ast ) {
-		result += getName( decl )( childrenAst( decl ) );
-	}
-	
-	return result;
-} 
-
-public list[node] childrenAst( Declaration n ) {
-	println( n );
-	children = concat( getChildren( n ) );
-	result   = [];
-	
-	for( child <- children ) {
-		result += getName( child )( childrenAst( child ) );
-	}
-	
-	return result;
-}
-public default list[node] childrenAst( value v ) = [v];
-
-public list[str] convertAst( set[Declaration] ast ) {
-	annotatedAst = annotateNoChildren( ast );
-	result = [];
-
-	top-down visit( annotatedAst ) {
-		case Declaration d : result += (getName(d) + toString(d@children));//()[@src = getLoc(d)];
-		case Statement d : result +=   (getName(d) + toString(d@children));//()[@src = getLoc(d)];
-		case Expression d : result +=  (getName(d) + toString(d@children));//()[@src = getLoc(d)];
-	}
-	
-	return result;
 }
 
 private loc getLoc( node d ) { 
 	if( Declaration n := d || Statement n := d || Expression n := d ) {
-		try return n@src; catch NoSuchAnnotation(_): return |project://schets|;
+		try return n@src; catch NoSuchAnnotation(_): return |project://undefined|;
 	} else {
 		return |project://schets|;
 	} 
