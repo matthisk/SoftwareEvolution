@@ -12,7 +12,7 @@ anno int Expression@children;
 
 anno loc node@src;
 
-public int MassTreshold = 20;
+public int MassTreshold = 10;
 
 public loc hsqldb          = |project://hsqldb|;
 public loc smallsql        = |project://smallsql|;
@@ -23,11 +23,29 @@ public loc testDuplication = |project://test/src/test/Duplication.java|;
 public set[Declaration] createAstsF( loc l ) = { createAstFromFile( l, true ) };
 public set[Declaration] createAstsE( loc l ) = createAstsFromEclipseProject(l,true);
 
-public set[set[loc]] calculateDuplicates( set[Declaration] ast ) {
-	return range( groupDups( findDups( hashMapAst( annotateNoChildren( generalizeNames( ast ) ) ) ) ) );
+public void printDups( map[node,set[loc]] m ) {
+	for( k <- m ) {
+		if( getName( k ) == "seq" ) {
+			println("
+					'Sequence Duplicate:
+					'<m[k]>");
+		} else {
+			println("
+					'Normal Duplicate:
+					'<m[k]>");
+		}
+	}
 }
 
-public map[node,set[loc]] groupDups2( map[node,set[loc]] m ) {
+public map[node,set[loc]] calculateDuplicates( loc l ) = calculateDuplicates( createAstsFromEclipseProject( l, true ) );
+public map[node,set[loc]] calculateDuplicates( set[Declaration] ast ) {
+	gAst = annotateNoChildren( generalizeNames( ast ) );
+	hash = filterDups( hashMapAst( gAst ) );
+	
+	return filterTreshold( findSequences( gAst, hash ) );
+}
+
+public map[node,set[loc]] groupDups( map[node,set[loc]] m ) {
 	
 	for( k <- m ) {
 		visit( getChildren(k) ) {
@@ -41,28 +59,8 @@ public map[node,set[loc]] groupDups2( map[node,set[loc]] m ) {
 public set[loc] removeSameFile( set[loc] s1, set[loc] s2 ) = { l | l <- s2, l.uri notin mapper(s1,getUri) };
 public str getUri( loc l ) = l.uri;
 
-public map[node,set[loc]] groupDups( map[node,set[loc]] m ) {
-	s = {};
-	
-	for( k <- m, k2 <- m, k != k2 ) {
-		c = 0;
-		
-		for( l <- m[k], l2 <- m[k2], l.uri == l2.uri && l > l2 ) {
-			c += 1;
-		}
-		
-		if( c == size(m[k2]) ) {
-			s += k2;
-		}
-	}
-	
-	for( k <- s ) {
-		m = delete( m, k );
-	}
-	
-	return m;
-}
-public map[node,set[loc]] findDups( map[node,set[loc]] m ) = ( k:m[k] | k <- m, size(m[k]) > 1 && withinTreshold(k) );
+public map[node,set[loc]] filterTreshold( map[node,set[loc]] m ) = ( k:m[k] | k <- m, withinTreshold(k) );
+public map[node,set[loc]] filterDups( map[node,set[loc]] m ) = ( k:m[k] | k <- m, size(m[k]) > 1 );
 
 public bool withinTreshold( node n ) {
 	if( Declaration d := n || Statement d := n || Expression d := n ) {
@@ -72,27 +70,58 @@ public bool withinTreshold( node n ) {
 	}
 }
 
-public int mass( node n ) {
-	int r = 1;
-	
-	visit( n ) {
-		case node _: r += 1;
-	}
-	
-	return r;
-}
-
 public map[node, set[loc]] hashMapAst( set[Declaration] ast ) {
 	map[node, set[loc]] m = ();
 	
 	visit( ast ) {
 		case Declaration n: m[n] = n in m ? m[n] + getLoc(n) : {getLoc(n)};
-		case Statement n:   m[n] = n in m ? m[n] + getLoc(n) : {getLoc(n)}; 
+		case Statement n:   m[n] = n in m ? m[n] + getLoc(n) : {getLoc(n)};
 		case Expression n:  m[n] = n in m ? m[n] + getLoc(n) : {getLoc(n)};
 	}
 
 	return m;
 } 
+
+public int MinimumSequenceLengthTreshold = 3;
+public map[node,set[loc]] findSequences( set[Declaration] ast, map[node,set[loc]] m ) {
+	visit( ast ) {
+		case n:\block(list[Statement] statements): if( n notin m ) m = createSequences( n, statements, m );
+	}
+	
+	for( k1 <- m, getName(k1) == "seq" ) {
+		for( k2 <- m, getName(k2) == "seq" ) {
+			if( getChildren(k2) < getChildren(k1) ) {
+				m = delete(m, k2);
+			}
+		}
+		 
+	}
+	
+	return m;
+}
+
+public map[node,set[loc]] createSequences( node parent, list[node] c, map[node,set[loc]] m ) {
+	l = for( n <- c ) append n in m;
+	
+	i = 0;
+	for( j <- [0..size(l)] ) {
+		if( l[j] ) i += 1;
+		else       i =  0;
+		if( i > MinimumSequenceLengthTreshold ) {
+			sq = c[(j-i+1)..j];
+			n = makeNode("seq",sq);
+			n = n[@children=getNoChildren(n)];
+			m[n] = n in m ? m[n] + sequenceLocation(mapper(sq,getLoc)) : {sequenceLocation(mapper(sq,getLoc))};
+		} 
+	}
+	
+	return m;
+}
+
+public loc sequenceLocation( locs:[loc l1, *loc _, loc l2] ) {
+	loc result = toLocation(l1.uri);
+	return result(l1.offset,l2.offset-l1.offset+l2.length,l1.begin,l2.end);
+}
 
 public set[Declaration] generalizeNames( set[Declaration] ast ) {
 	return visit( ast ) {
@@ -120,7 +149,7 @@ private loc getLoc( node d ) {
 	if( Declaration n := d || Statement n := d || Expression n := d ) {
 		try return n@src; catch NoSuchAnnotation(_): return |project://undefined|;
 	} else {
-		return |project://schets|;
+		return |project://undefined|;
 	} 
 }
 
@@ -140,5 +169,3 @@ private int getNoChildren( node n ) {
 	
 	return result;
 }
-
-private value children( node n ) { try return n@children; catch NoSuchAnnotation(_): return 0; }
