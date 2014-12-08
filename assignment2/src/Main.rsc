@@ -1,18 +1,22 @@
 module Main
 
+// Library imports
 import Prelude;
 import ListRelation;
 
+// M3 imports
 import lang::java::m3::AST;
 import lang::java::jdt::m3::AST;
+
+// Local imports
+import Config;
+import Output;
 
 anno int Declaration@children;
 anno int Statement@children;
 anno int Expression@children;
 
 anno loc node@src;
-
-public int MassTreshold = 10;
 
 public loc hsqldb          = |project://hsqldb|;
 public loc smallsql        = |project://smallsql|;
@@ -23,51 +27,53 @@ public loc testDuplication = |project://test/src/test/Duplication.java|;
 public set[Declaration] createAstsF( loc l ) = { createAstFromFile( l, true ) };
 public set[Declaration] createAstsE( loc l ) = createAstsFromEclipseProject(l,true);
 
-public void printDups( map[node,set[loc]] m ) {
-	for( k <- m ) {
-		if( getName( k ) == "seq" ) {
-			println("
-					'Sequence Duplicate:
-					'<m[k]>");
-		} else {
-			println("
-					'Normal Duplicate:
-					'<m[k]>");
-		}
-	}
-}
-
-public map[node,set[loc]] calculateDuplicates( loc l ) = calculateDuplicates( createAstsFromEclipseProject( l, true ) );
-public map[node,set[loc]] calculateDuplicates( set[Declaration] ast ) {
-	gAst = annotateNoChildren( generalizeNames( ast ) );
-	hash = filterDups( hashMapAst( gAst ) );
+public void calculateDuplicates( loc l ) = calculateDuplicates( createAstsFromEclipseProject( l, true ) );
+public void calculateDuplicates( set[Declaration] ast ) {
+	gAst     = annotateNoChildren( generalizeNames( ast ) );
+	clones   = findAstClones( gAst );
+	sequence = findSequenceClones( gAst );
 	
-	return filterTreshold( findSequences( gAst, hash ) );
+	println("Normal Clones");
+	for( cloneClass <- clones ) {
+		println( cloneClass );
+	}
+	
+	println("
+			'Sequence Clones");
+	for( cloneClass <- sequence ) {
+		println( cloneClass );
+	}
 }
 
 public map[node,set[loc]] groupDups( map[node,set[loc]] m ) {
 	
 	for( k <- m ) {
 		visit( getChildren(k) ) {
-			case node n: if(n in m) m[n] = removeSameFile( m[k], m[n] );
+			case node n: if(n in m) m[n] = removeContainedLocs( m[n], m[k] );
 		}
 	}
 	
-	return m;
+	return filterClones( m );
 }
+
+public set[loc] removeContainedLocs( set[loc] s1, set[loc] s2 ) = { l1 | l1 <- s1, ! any(l2 <- s2, l1 < l2) };
 
 public set[loc] removeSameFile( set[loc] s1, set[loc] s2 ) = { l | l <- s2, l.uri notin mapper(s1,getUri) };
 public str getUri( loc l ) = l.uri;
 
 public map[node,set[loc]] filterTreshold( map[node,set[loc]] m ) = ( k:m[k] | k <- m, withinTreshold(k) );
-public map[node,set[loc]] filterDups( map[node,set[loc]] m ) = ( k:m[k] | k <- m, size(m[k]) > 1 );
+public map[&K,set[loc]] filterClones( map[&K,set[loc]] m ) = ( k:m[k] | k <- m, size(m[k]) > 1 );
 
 public bool withinTreshold( node n ) {
 	if( Declaration d := n || Statement d := n || Expression d := n ) {
-		try return d@children > MassTreshold; catch NoSuchAnnotation(_): return false;
+		try return d@children > MASS_TRESHOLD; catch NoSuchAnnotation(_): return false;
 	} else {
 		return false;
 	}
+}
+
+public set[set[loc]] findAstClones( set[Declaration] ast ) {
+	return range( groupDups( filterTreshold( hashMapAst( ast ) ) ) );
 }
 
 public map[node, set[loc]] hashMapAst( set[Declaration] ast ) {
@@ -79,39 +85,30 @@ public map[node, set[loc]] hashMapAst( set[Declaration] ast ) {
 		case Expression n:  m[n] = n in m ? m[n] + getLoc(n) : {getLoc(n)};
 	}
 
-	return m;
+	return filterClones( m );
 } 
 
-public int MinimumSequenceLengthTreshold = 3;
-public map[node,set[loc]] findSequences( set[Declaration] ast, map[node,set[loc]] m ) {
+public set[set[loc]] findSequenceClones( set[Declaration] ast ) {
+	map[list[node],set[loc]] m = ();
+	
 	visit( ast ) {
-		case n:\block(list[Statement] statements): if( n notin m ) m = createSequences( n, statements, m );
+		case n:\block(list[Statement] statements): m = createSequences( n, statements, m );
 	}
 	
-	for( k1 <- m, getName(k1) == "seq" ) {
-		for( k2 <- m, getName(k2) == "seq" ) {
-			if( getChildren(k2) < getChildren(k1) ) {
-				m = delete(m, k2);
-			}
-		}
-		 
+	m = ( k:m[k] | k <- m, size(m[k]) > 1 );
+	
+	for( k1 <- m, k2 <- m, k1 != k2 && k2 < k1 ) {
+		m[k2] = removeContainedLocs( m[k2], m[k1] );
 	}
 	
-	return m;
+	return range( filterClones( m ) );
 }
 
-public map[node,set[loc]] createSequences( node parent, list[node] c, map[node,set[loc]] m ) {
-	l = for( n <- c ) append n in m;
-	
-	i = 0;
-	for( j <- [0..size(l)] ) {
-		if( l[j] ) i += 1;
-		else       i =  0;
-		if( i > MinimumSequenceLengthTreshold ) {
-			sq = c[(j-i+1)..j];
-			n = makeNode("seq",sq);
-			n = n[@children=getNoChildren(n)];
-			m[n] = n in m ? m[n] + sequenceLocation(mapper(sq,getLoc)) : {sequenceLocation(mapper(sq,getLoc))};
+public map[list[node],set[loc]] createSequences( node parent, list[node] c, map[list[node],set[loc]] m ) {
+	for( i <- [0..size(c)], j <- [MIN_SEQUENCE_LENGTH..MAX_SEQUENCE_LENGTH] ) {
+		if( i + j <= size(c) ) {
+			s = c[i..(i+j)];
+			m[s] = s in m ? m[s] + sequenceLocation(mapper(s,getLoc)) : {sequenceLocation(mapper(s,getLoc))};
 		} 
 	}
 	
