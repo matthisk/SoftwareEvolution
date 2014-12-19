@@ -3,7 +3,10 @@
 <head>
 	<title>Clone Visualization</title>
 
-	<link href="/lib/css/c3.min.css" rel="stylesheet" type="text/css">
+	<link href="/lib/css/morris.css" rel="stylesheet" type="text/css">
+	<style type="text/css">
+
+	</style>
 </head>
 <body>
 
@@ -11,53 +14,164 @@
 	
 </div>
 
+<div id="lines_donut">
+	
+</div>
+
+<div id="demo">
+	
+
+</div>
+
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-<script src="lib/js/c3.min.js"type="text/javascript"></script>
+<script src="http://d3.geotheory.co.uk/d3-transform.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/raphael/2.1.0/raphael-min.js"></script>
+<script src="lib/js/morris.min.js"type="text/javascript"></script>
 
 <script type="text/javascript">
+	/**
+	 * CLONE VISUALIZER
+	 * ----------------
+	 *
+	 * The visualizer generates three different visualizations.
+	 * - A bar graph visualizing the lines of code for each file and the lines of comments
+	 * - A donut graph showing the total lines of duplicated code as opposed to total lines of code
+	 * - A donut graph with an arc for each file and showing red arch on spots where a clone is detected
+	 *
+	 * Visualization is achieved using two libraries for visualization 1 and 2 we use morris.js
+	 * For the last visualization we use d3.js
+	 *
+	 * A model is constructed from the JSON data to request specific data for visualization
+	 */
+
 	var VisModel = function( report ) {
 		this.report = report;
 
 		this.init();
 	};
 
+	var sameFile = function( file1, file2 ) {
+		return file1.path == file2.path && file1.scheme == file2.scheme && file1.authority == file2.authority;
+	};
+
+	var hasLocation = function( locations, file ) {
+		for (var i = 0; i < locations.length; i++) {
+			if( sameFile( locations[i], file ) ) return true;
+		};
+
+		return false;
+	};
+
+	var removeLocation = function( locations, file ) {
+		var result = [];
+		for (var i = 0; i < locations.length; i++) {
+			if( ! sameFile( locations[i], file ) ) result.push(locations[i].path);
+		};
+		return result;
+	};
+
+	var findClones = function( classes, file ) {
+		var result = [];
+
+		classes.forEach(function(clones) {
+
+			clones.forEach(function(clone) {
+				if( clone.path == file ) {
+					result.push( clone );
+				}
+			});
+
+		});
+
+		return result;
+	}
+
 	$.extend(VisModel.prototype, {
 		init : function() {
 			this.files = this.filter_files( this.report );
+			this.sorted_clones = this.sort_clones();
 		},
 
 		filter_files : function( report ) {
-			files = [];
+			var files = [];
 
 			for (var i = 0; i < report.files.length; i++) {
 				files[i] = {
 					src : report.files[i].location.path,
-					size : report.files[i].lines_of_code
+					loc : report.files[i].lines_of_code,
+					clones_loc : report.files[i].lines_of_clones
 				};
 			}
 
 			return files;
 		},
 
-		getFilesLOCC3Report : function() {
-			result = [];
+		sort_clones : function() {
+			var result = {};
 
-			for (var i = 0; i < this.files.length; i++) {
-				result[i] = this.files[i].size;
+			this.files.forEach(function(file) {
+
+				result[file.src] = findClones( this.report.clones, file.src );
+
+			}.bind(this));
+
+			return result;
+		},
+
+		start_end_files : function() {
+			var result_files = [],
+				result_clones = [],
+				pos = 0;
+
+			this.report.files.forEach(function(file) {
+				result_files.push([pos, pos + file.location.endLine]);
+
+				this.sorted_clones[ file.location.path ].forEach(function( clone ) {
+					result_clones.push([pos + clone.beginLine,pos + clone.endLine]);
+				});
+				
+				pos += file.location.endLine;
+			}.bind(this));
+
+			return {
+				files : result_files,
+				clones : result_clones
+			};
+		},
+
+		generateDendogramData : function() {
+			var result = {};
+			
+			for (var i = 0; i < this.report.files.length; i++) {
+				file = this.report.files[i].location;
+
+				for (var j = 0; j < this.report.clones.length; j++) {
+					cloneClass = this.report.clones[j];
+
+					if( hasLocation( cloneClass, file ) ) {
+						cloneClass = removeLocation( cloneClass, file );
+						if( result.hasOwnProperty(file.path) )
+							result[file.path] = result[file.path].concat(cloneClass);
+						else
+							result[file.path] = cloneClass;
+					}
+				};
 			};
 
 			return result;
 		},
 
-		getFilesNameC3Report : function() {
-			result = [];
+		getFilesReport : function() {
+			return this.files;
+		},
 
-			for (var i = 0; i < this.files.length; i++) {
-				result[i] = this.files[i].src;
-			};
+		getLines : function() {
+			return this.report.meta.lines_of_code;
+		},
 
-			return result;
+		getCloneLines : function() {
+			return this.report.meta.lines_of_clones;
 		}
 
 	});
@@ -65,44 +179,121 @@
 	var Visualizer = function( model ) {
 		this.model = model;
 
-		this.init();
+		this.initBar();
+		this.initDonut();
 	};
 
 	$.extend(Visualizer.prototype, {
-		init : function() {
-			var xCategories = this.model.getFilesNameC3Report();
-			var column1 = this.model.getFilesLOCC3Report();
-			
-			column1.unshift("lines");
+		initBar : function() {
+			var data = this.model.getFilesReport();
 
-			this.files_chart = c3.generate({
-				bindto: "#files_chart",
-				data : {
-					columns : [
-						column1
-					],
-					types : {
-						lines : 'bar'
-					},
-					labels : true
-				},
-				axis : {
-					x: {
-						type : 'category',
-						categories : xCategories,
-						tick : {
-							culling : {
-								max : xCategories.length / 6
-							}
-						}
-					}
-				},
-				grid : {
-					y : {
-						show : true
-					}
-				}
+			var chart = new Morris.Bar({
+				element : "files_chart",
+				data : data,
+				xkey : "src",
+				ykeys : ["loc","clones_loc"],
+				labels : ["Lines","Clones"],
+				stacked : true,
+				barColors : ["#01939A","#FF0700"]
 			});
+		},
+
+		initDonut : function() {
+			var data = [
+				{
+					label : "Normal Lines",
+					value : this.model.getLines() - this.model.getCloneLines()
+				},
+				{
+					label : "Clone Lines",
+					value : this.model.getCloneLines()
+				}
+			];
+
+			var donut = new Morris.Donut({
+				data : data,
+				element : "lines_donut",
+				colors : ["#01939A","#FF0700"]
+			});
+
+		}
+	});
+
+	var D3Visualizer = function( model ) {
+		this.model = model;
+		this.data = model.start_end_files();
+
+		this.init();
+	}
+
+	$.extend(D3Visualizer.prototype, {
+		init : function() {
+			var width = 960,
+				height = 500,
+				radius = Math.min(width, height) / 2;
+
+			var files = this.data.files;
+			var clones = this.data.clones;
+
+			var color = d3.scale.category20b();
+
+			var cScale = d3.scale.linear().domain([0, files[ files.length-1 ][1] ]).range([0, 2 * Math.PI]);
+
+			var arc_file = d3.svg.arc()
+				.outerRadius(radius - 10)
+				.innerRadius(radius - 30)
+				.startAngle(function(d) { return cScale(d[0]); })
+				.endAngle(function(d) { return cScale(d[1]); });
+
+			var arc_clone = d3.svg.arc()
+				.outerRadius(radius - 25)
+				.innerRadius(radius - 30)
+				.startAngle(function(d) { return cScale(d[0]); })
+				.endAngle(function(d) { return cScale(d[1]); });
+
+			var svg = d3.select("#demo").append("svg")
+				.attr("width",width)
+				.attr("height",height);
+				
+			svg.append("g")
+				.attr("transform","translate(" + width / 2 + "," + height / 2 + ")")
+				.selectAll("path")
+				.data( files )
+				.enter()
+				.append("path")
+				.attr("d",arc_file)
+				.style("fill",function(d) { return color(d[0]); });
+
+			svg.append("g")
+				.attr("transform","translate(" + width / 2 + "," + height / 2 + ")")
+				.selectAll("path")
+				.data( clones )
+				.enter()
+				.append("path")
+				.attr("d",arc_clone)
+				.style("fill","#ff0000");
+
+			// var g = svg.selectAll(".arc")
+			// 	.data( this.data )
+			// 	.enter()
+			// 	.append("g")
+			// 	.attr("class","arc");
+
+			// g.append("path")
+			// 	.attr("d",arc)
+			// 	.style("fill", function(d) { return color(d.data.src); });
+
+			// g.append("text")
+			// 	.attr("transform", function(d) { 
+			// 		c = arc.centroid(d);
+					
+			// 		return d3.svg.transform()
+			// 			.translate(c[0],c[1])();
+			// 	})
+
+			// 	.attr("dy", ".35em")
+			// 	.style("text-anchor","middle")
+			// 	.text(function(d) { return d.data.src; });
 		}
 	});
 
@@ -117,6 +308,7 @@
 		.done(function( data, textStatus, jqXhr ) {
 			var visModel = new VisModel( data );
 			var visualizer = new Visualizer( visModel );
+			var d3Visualizer = new D3Visualizer( visModel );
 		});
 
 	});

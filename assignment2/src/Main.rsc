@@ -26,9 +26,16 @@ public loc testDuplication = |project://test/src/test/Duplication.java|;
 	Rascal CLone Detector
 	---------------------
 	
-	The algorithm used in the clone detector is loosely based on the work by Ada Baxter in his paper...
+	The algorithm used in the clone detector is loosely based on the work by Ira Baxter in his paper "Clone detection using abstract syntax trees"
 	To detect clones the program generates Abstract Syntax Trees(AST) and hash maps of all subtrees. The detector is also
 	capable in detecting sequence clones (which are a list of sibling nodes in the AST). 
+	
+	Motivation
+	----------
+	The choice to use ASTs is to be able to detect type2 clones. And to make the code more reusable (different programming languages). Separation of
+	concerns is very important for the project. This is why the clones are exported as a json file so any other program could be able to consume
+	this data an visualize/manipulate it. Focus of the tool lies on clean representation of the data in a human readable fashion. The detection algorithm
+	is separated from the rest of the code, so even though it is not perfect the rest of the tool can still operate. 
 	
 	Design:
 	-------
@@ -67,8 +74,10 @@ public tuple[list[CloneClass],map[str,value]] detectClones( M3 mmm ) {
 	meta["created_at"]   = strt;
 	meta["elapsed_time"] = createDuration( strt, now() );
 	
-	outputText( cloneClasses, meta, console = false );
-	outputJSON( cloneClasses, meta );
+	if( OUTPUT_TO_FILES ) {
+		outputText( cloneClasses, meta, console = false );
+		outputJSON( cloneClasses, meta );
+	}
 	
 	return <cloneClasses, meta>;
 }

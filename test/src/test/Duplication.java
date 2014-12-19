@@ -59,9 +59,29 @@ public class Duplication {
 	public void geenDups(int aap) {
 		int gaap = aap + 5;
 		int blaat = aap + 10;
+		String apaat = "AAPJES";
+		
+		for( int i = 0; i < 10; i++ ) {
+			
+		}
 		
 		int agaap = aap + 5;
 		int ablaat = aap + 10;
+		String apaaton = "AAPJES";
+	}
+	
+	public void geenDups2(int aap) {
+		int gaap = aap + 5;
+		int blaat = aap + 10;
+		String apaat = "AAPJES";
+		
+		for( int i = 0; i < 10; i++ ) {
+			
+		}
+		
+		int agaap = aap + 5;
+		int ablaat = aap + 10;
+		String apaaton = "AAPJES";
 	}
 	
 }
